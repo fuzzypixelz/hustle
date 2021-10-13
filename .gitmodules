@@ -1,0 +1,3 @@
+[submodule "kdl"]
+	path = kdl
+	url = https://github.com/kdl-org/kdl.git
