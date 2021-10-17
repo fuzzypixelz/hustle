@@ -26,6 +26,8 @@ source-repository head
 library
   exposed-modules:
       KDL
+      KDL.Internal
+      KDL.Parser
       KDL.Types
   other-modules:
       Paths_Hustle
