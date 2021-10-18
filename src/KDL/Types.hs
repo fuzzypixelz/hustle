@@ -26,11 +26,13 @@ newtype Document = Document { docNodes :: [Node] }
 instance Show Document where
   show d = intercalate "" (map show (docNodes d))
 
+-- This data type serves as an abstraction over Values
+-- and Properties of a Node to simplify the the node
+-- Parser, i.e group the two types together in order to
+-- consume any number of them in any order.
 data Content
-  = NodeChild { getChild :: Maybe Node }
-  | NodeValue { getValue :: Value }
+  = NodeValue { getValue :: Value }
   | NodeProperty { getProp :: Property }
-  | Comment
   deriving (Show, Eq)
 
 type TypeAnnotation = Maybe Name
@@ -47,36 +49,34 @@ data Node = Node
   , nodeProps      :: [Property]
   , nodeChildren   :: [Node]
   , nodeTerminator :: NodeTerminator
-  , nodeIsChild    :: Bool
   }
   deriving Eq
 
 instance Show Node where
-  show n | nodeIsChild n = "{\n    " ++ nodeBody ++ "}"
-         | otherwise     = nodeBody
-   where
-    nodeBody =
-      ( unwords
-        . filter (/= "")
-        $ [ showAnn (nodeAnn n) ++ show (nodeName n)
-          , unwords (map show (nodeArgs n))
-          , unwords (map show (nodeProps n))
-          , unwords (map show (nodeChildren n))
-          ]
-        )
-        ++ show (nodeTerminator n)
+  show n =
+    ( unwords
+      . filter (/= "")
+      $ [ showAnn (nodeAnn n) ++ show (nodeName n)
+        , unwords (map show (nodeArgs n))
+        , unwords (map show (nodeProps n))
+        , unwords (map show (nodeChildren n))
+        ]
+      )
+      ++ show (nodeTerminator n)
 
 data NodeTerminator
   = Semicolon
   | Newline
+  | LineComment
   | EOF
   deriving (Eq)
 
 instance Show NodeTerminator where
   show t = case t of
-    Semicolon -> ";"
-    Newline   -> "\n"
-    EOF       -> "\n" -- TODO: verify if this should be ""
+    Semicolon   -> "\n"
+    Newline     -> "\n"
+    LineComment -> ""
+    EOF         -> "\n" -- TODO: verify if this should be ""
 
 data ValueType
   = StringValue Text
@@ -93,7 +93,7 @@ data ValueType
 -- TODO: use prettyprinter/simpleprint
 instance Show ValueType where
   show (StringValue    t) = "\"" ++ T.unpack t ++ "\""
-  show (RawStringValue r) = "r" ++ hs ++ show r ++ hs
+  show (RawStringValue r) = show r
     where hs = replicate (length $ filter (== '"') (T.unpack r)) '#'
   show (HexValue     h) = show h --"0x" ++ showHex h ""
   show (OctalValue   h) = show h --"0o" ++ showOct h ""
@@ -105,12 +105,12 @@ instance Show ValueType where
 
 data Value = Value
   { valueAnn :: TypeAnnotation
-  , value    :: ValueType
+  , valueExp :: ValueType
   }
   deriving Eq
 
 instance Show Value where
-  show v = showAnn (valueAnn v) ++ show (value v)
+  show v = showAnn (valueAnn v) ++ show (valueExp v)
 
 data Property = Property
   { propKey   :: Name

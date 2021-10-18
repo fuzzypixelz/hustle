@@ -2,16 +2,17 @@
 
 import           Control.Exception              ( evaluate )
 import           KDL
-import           Test.Hspec
-import           Test.QuickCheck
+import           KDL.Types
 import           System.Directory
 import           System.FilePath
+import           Test.Hspec
+import           Test.QuickCheck
 
 testCase :: FilePath -> FilePath -> SpecWith ()
 testCase input expected = do
   describe "KDL.parseKDL" $ do
     it ("should satisfy " ++ input) $ do
-      inputFile <- readFile input
+      inputFile     <- readFile input
       shouldSucceed <- doesFileExist expected
       if shouldSucceed
         then do
@@ -39,28 +40,38 @@ main = hspec $ do
   parallel $ do
     describe "should pass the kdl-org provided test cases" $ do
       files_ <- runIO $ getDirectoryContents inputDir
-      let files = filter (`notElem` [".", ".."]) files_
-      let inputFiles = map (inputDir </>) files
+      let files         = filter (`notElem` [".", ".."]) files_
+      let inputFiles    = map (inputDir </>) files
       let expectedFiles = map (expectedDir </>) files
-      let testCases = zipWith testCase inputFiles expectedFiles
+      let testCases     = zipWith testCase inputFiles expectedFiles
       sequence_ testCases
 
   describe "KDL.parseKDL" $ do
     it "ends a node with a semicolon or a newline" $ do
       parseKDL "node;" `shouldBe` Document
-        { docNodes = [ Node { nodeName     = Identifier "node"
-                            , nodeArgs     = []
-                            , nodeProps    = []
-                            , nodeAnn      = Nothing
+        { docNodes = [ Node { nodeName       = Identifier "node"
+                            , nodeArgs       = []
+                            , nodeProps      = []
+                            , nodeAnn        = Nothing
                             , nodeTerminator = Semicolon
-                            , nodeChildren = [] } ] }
+                            , nodeChildren   = []
+                            }
+                     ]
+        }
 
     it "parses strings stating with r as Raw Strings" $ do
       parseKDL "node r#\"ÉPIC\\n \"RawString 😀\"#;" `shouldBe` Document
-        { docNodes = [ Node { nodeName     = Identifier "node"
-                            , nodeArgs     = [ Value Nothing (RawStringValue "ÉPIC\\n \"RawString 😀") ]
-                            , nodeProps    = []
-                            , nodeAnn      = Nothing
-                            , nodeTerminator = Semicolon
-                            , nodeChildren = [] } ] }
+        { docNodes =
+          [ Node
+              { nodeName       = Identifier "node"
+              , nodeArgs = [ Value Nothing
+                                   (RawStringValue "ÉPIC\\n \"RawString 😀")
+                           ]
+              , nodeProps      = []
+              , nodeAnn        = Nothing
+              , nodeTerminator = Semicolon
+              , nodeChildren   = []
+              }
+          ]
+        }
 
