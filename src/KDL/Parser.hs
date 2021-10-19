@@ -6,8 +6,10 @@ module KDL.Parser where
 import           KDL.Internal
 import           KDL.Types
 
+import qualified Control.Concurrent.QSem       as T
 import           Control.Monad                  ( void )
-import           Data.Char                      ( isHexDigit
+import           Data.Char                      ( chr
+                                                , isHexDigit
                                                 , isOctDigit
                                                 , isSpace
                                                 )
@@ -20,6 +22,7 @@ import           Data.Scientific                ( Scientific )
 import qualified Data.Scientific               as Sci
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as T
+import           Numeric                        ( readHex )
 import           Text.Megaparsec                ( (<?>)
                                                 , (<|>)
                                                 , MonadParsec(eof, label, try)
@@ -47,6 +50,7 @@ import           Text.Megaparsec.Char           ( char
                                                 , string
                                                 )
 import qualified Text.Megaparsec.Char.Lexer    as L
+import           Text.Megaparsec.Debug
 
 -- WHITESPACE
 
@@ -54,7 +58,7 @@ escline :: Parser ()
 escline = void (char '\\') >> many ws >> (try linebreak <|> lineComment)
 
 linespace :: Parser ()
-linespace = try linebreak <|> try ws <|> lineComment
+linespace = try linebreak <|> try ws <|> try lineComment <?> "Line Space"
 
 linebreak :: Parser ()
 linebreak =
@@ -86,7 +90,7 @@ anystring = try rawstring <|> escstring
 
 escstring :: Parser Text
 escstring = do
-  T.pack . concat <$> (char '"' *> manyTill character (char '"'))
+  T.concat <$> (char '"' *> manyTill character (char '"'))
 
 rawstring :: Parser Text
 rawstring = do
@@ -98,19 +102,29 @@ rawstring = do
   void (count h (char '#'))
   return . T.pack $ (init . concat $ s)
 
-character :: Parser String
+character :: Parser Text
 character =
-  do
-      void (char '\\')
-      e <- escape
-      return (if e == '\\' then [e] else ['\\', e])
-    <|> (: [])
-    <$> noneOf ("\\\"" :: [Char])
+  void (char '\\') *> escape <|> T.singleton <$> noneOf ("\\\"" :: [Char])
 
-escape :: Parser Char
+escape :: Parser Text
 escape =
-  oneOf ("\"\\/bfnrt" :: [Char])
-    <|> (string "u{" *> count' 1 6 hexDigitChar *> char '}')
+  do
+    c <- oneOf ("\"\\/bfnrt" :: [Char])
+    case c of
+      '\\' -> return (T.singleton c)
+      e    -> return (T.pack ['\\', e])
+  <|> uescape
+
+uescape :: Parser Text
+uescape = do
+  void (string "u{")
+  u <- fromInteger <$> number 16 isHexDigit
+  if u >= 0x10ffff
+    then fail "Exceeded Unicode code point limit."
+    else do
+      void (char '}')
+      let s = chr u
+      return (T.singleton s)
 
 -- NUMBERS
 
@@ -196,7 +210,7 @@ nodes = between (many linespace) (many linespace) (fromMaybe [] <$> body)
     return (n ++ ns)
 
 node :: Parser (Maybe Node)
-node = lexeme $ do
+node = do
   discard        <- optional comment
   nodeAnn        <- optional typeAnnotation
   nodeName       <- name
@@ -219,15 +233,16 @@ node = lexeme $ do
 
 content :: Parser [Maybe Content]
 content = many . try $ do
-  discard <- optional comment
   void (some nodespace)
+  discard <- optional comment
+  void (many nodespace)
   c <- choice [NodeProperty <$> try property, NodeValue <$> try value]
   case discard of
     Just _  -> return Nothing
     Nothing -> return $ Just c
 
 children :: Parser [Node]
-children = do
+children = try $ do
   void (many nodespace)
   discard <- optional comment
   void (char '{')
@@ -239,7 +254,7 @@ children = do
     Nothing -> return ns
 
 comment :: Parser ()
-comment = do
+comment = try $ do
   void (string "/-")
   void $ many nodespace
 
