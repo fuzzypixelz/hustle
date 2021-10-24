@@ -1,51 +1,44 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module KDL.Internal 
-where
+module KDL.Internal where
 
-import KDL.Types ( Parser )
-
-import Control.Monad ( void )
-import Data.Char ( isDigit, digitToInt )                      
+import           Control.Monad                  ( void )
+import           Data.Char                      ( digitToInt
+                                                , isDigit
+                                                )
+import           Data.Either                    ( isRight )
 import           Data.Scientific                ( Scientific )
 import qualified Data.Scientific               as Sci
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as T
-import Text.Megaparsec
-    ( satisfy, option, manyTill_, MonadParsec(takeWhileP, try) )
-import Text.Megaparsec.Char
-    ( char, char', digitChar, hspace1, space1 )
+import           KDL.Types                      ( Parser )
+import           Text.Megaparsec                ( (<|>)
+                                                , MonadParsec
+                                                  ( eof
+                                                  , takeWhileP
+                                                  , try
+                                                  )
+                                                , manyTill_
+                                                , option
+                                                , runParser
+                                                , satisfy
+                                                )
+import           Text.Megaparsec.Char           ( char
+                                                , char'
+                                                , digitChar
+                                                , newline
+                                                )
 import qualified Text.Megaparsec.Char.Lexer    as L
 
+signed :: Num a => Parser a -> Parser a
+signed p = option id sign <*> p
+  where sign = (id <$ char '+') <|> (negate <$ char '-')
+
 lineComment :: Parser ()
-lineComment = L.skipLineComment "//"
+lineComment = L.skipLineComment "//" >> (void newline <|> eof)
 
 blockComment :: Parser ()
-blockComment = L.skipBlockComment "/*" "*/"
-
-sc :: Parser ()
-sc = L.space
-  space1
-  lineComment
-  blockComment
-
-hsc :: Parser ()
-hsc = L.space
-  hspace1
-  lineComment
-  blockComment
-
-lexeme :: Parser a -> Parser a
-lexeme = L.lexeme sc
-
-hlexeme :: Parser a -> Parser a
-hlexeme = L.lexeme hsc
--- (.:) f g x y = f (g x y)
-(.:) = (.) . (.); infixr 7 .:
-
-manyTill__ :: Parser a -> Parser a -> Parser [a]
-manyTill__ = fmap addEnding .: manyTill_
-  where addEnding (xs, x) = xs ++ [x]
+blockComment = L.skipBlockCommentNested "/*" "*/"
 
 isBinDigit :: Char -> Bool
 isBinDigit c = c `elem` ['0', '1']
@@ -64,11 +57,10 @@ number b isNumDigit = mkNum . T.filter (/= '_') <$> digits
 decimal_ :: Parser Integer
 decimal_ = number 10 isDigit
 
-scientific_ :: Parser Sci.Scientific
+scientific_ :: Parser Scientific
 scientific_ = do
   c'      <- decimal_
-  -- SP c e' <- option (SP c' 0) (try $ dotDecimal_ c')
-  SP c e' <- dotDecimal_ c'
+  SP c e' <- option (SP c' 0) (try $ dotDecimal_ c')
   e       <- option e' (try $ exponent_ e')
   return (Sci.scientific c e)
 
@@ -86,3 +78,18 @@ exponent_ :: Int -> Parser Int
 exponent_ e' = do
   void (char' 'e')
   (+ e') <$> L.signed (return ()) (fromIntegral <$> decimal_)
+
+match :: Parser a -> Text -> Bool
+match p t = isRight $ runParser (p >> eof) "" t
+
+escChar :: Char -> Text
+escChar c = case c of
+  '\x08' -> "\\b"
+  '\x09' -> "\\t"
+  '\x0A' -> "\\n"
+  '\x0C' -> "\\f"
+  '\x0D' -> "\\r"
+  '\x22' -> "\\\""
+  '\x2F' -> "\\/"
+  '\x5C' -> "\\\\"
+  c      -> T.singleton c
