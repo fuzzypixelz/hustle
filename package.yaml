@@ -1,7 +1,7 @@
 name:                Hustle
 version:             0.1.0.0
 github:              "fuzzypixelz/Hustle"
-license:             BSD3
+license:             MIT
 author:              "Mahmoud Mazouz"
 maintainer:          "mazouz.mahmoud@outlook.com"
 copyright:           "2021 Mahmoud Mazouz"
@@ -11,8 +11,7 @@ extra-source-files:
 - ChangeLog.md
 
 # Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Web
+synopsis:            Haskell implementation of the KDL Document Language 
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
@@ -21,14 +20,15 @@ description:         Please see the README on GitHub at <https://github.com/fuzz
 
 dependencies:
 - base >= 4.7 && < 5
-- megaparsec
+- containers
 - text
-- directory
-- filepath
+- megaparsec
 - scientific
+- prettyprinter
 
 library:
   source-dirs: src
+  exposed-modules:     KDL
 
 executables:
   Hustle-exe:
@@ -38,6 +38,7 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -O2
     dependencies:
     - Hustle
 
@@ -53,3 +54,5 @@ tests:
     dependencies:
     - Hustle
     - QuickCheck
+    - directory
+    - filepath

@@ -6,13 +6,14 @@ cabal-version: 1.12
 
 name:           Hustle
 version:        0.1.0.0
+synopsis:       Haskell implementation of the KDL Document Language
 description:    Please see the README on GitHub at <https://github.com/fuzzypixelz/Hustle#readme>
 homepage:       https://github.com/fuzzypixelz/Hustle#readme
 bug-reports:    https://github.com/fuzzypixelz/Hustle/issues
 author:         Mahmoud Mazouz
 maintainer:     mazouz.mahmoud@outlook.com
 copyright:      2021 Mahmoud Mazouz
-license:        BSD3
+license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
@@ -26,18 +27,19 @@ source-repository head
 library
   exposed-modules:
       KDL
+  other-modules:
+      KDL.Formatter
       KDL.Internal
       KDL.Parser
       KDL.Types
-  other-modules:
       Paths_Hustle
   hs-source-dirs:
       src
   build-depends:
       base >=4.7 && <5
-    , directory
-    , filepath
+    , containers
     , megaparsec
+    , prettyprinter
     , scientific
     , text
   default-language: Haskell2010
@@ -48,13 +50,13 @@ executable Hustle-exe
       Paths_Hustle
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:
       Hustle
     , base >=4.7 && <5
-    , directory
-    , filepath
+    , containers
     , megaparsec
+    , prettyprinter
     , scientific
     , text
   default-language: Haskell2010
@@ -71,10 +73,12 @@ test-suite Hustle-test
       Hustle
     , QuickCheck
     , base >=4.7 && <5
+    , containers
     , directory
     , filepath
     , hspec ==2.*
     , megaparsec
+    , prettyprinter
     , scientific
     , text
   default-language: Haskell2010
