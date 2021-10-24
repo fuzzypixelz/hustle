@@ -6,13 +6,13 @@ module KDL.Parser where
 import           KDL.Internal
 import           KDL.Types
 
-import qualified Control.Concurrent.QSem       as T
 import           Control.Monad                  ( void )
 import           Data.Char                      ( chr
                                                 , isHexDigit
                                                 , isOctDigit
                                                 , isSpace
                                                 )
+import qualified Data.Map.Strict               as Map
 import           Data.Maybe                     ( catMaybes
                                                 , fromMaybe
                                                 , mapMaybe
@@ -22,7 +22,6 @@ import           Data.Scientific                ( Scientific )
 import qualified Data.Scientific               as Sci
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as T
-import           Numeric                        ( readHex )
 import           Text.Megaparsec                ( (<?>)
                                                 , (<|>)
                                                 , MonadParsec(eof, label, try)
@@ -55,33 +54,53 @@ import           Text.Megaparsec.Debug
 -- WHITESPACE
 
 escline :: Parser ()
-escline = void (char '\\') >> many ws >> (try linebreak <|> lineComment)
+escline =
+  char '\\' >> many ws >> (try linebreak <|> lineComment) <?> "Escape Line"
 
 linespace :: Parser ()
 linespace = try linebreak <|> try ws <|> try lineComment <?> "Line Space"
 
 linebreak :: Parser ()
-linebreak =
-  choice
-    $  map
-         void
-         [ char '\r' <?> "carriage return"
-         , newline
-         , char '\x85' <?> "next line"
-         , char '\f' <?> "form feed"
-         , char '\x2028' <?> "line seperator"
-         , char '\x2029' <?> "paragraph seperator"
-         ]
-    ++ [void crlf]
+linebreak = label "Newline" $ do
+  choice $ void crlf : map
+    void
+    [ char '\r' <?> "carriage return"
+    , char '\n' <?> "newline"
+    , char '\x85' <?> "next line"
+    , char '\f' <?> "form feed"
+    , char '\x2028' <?> "line seperator"
+    , char '\x2029' <?> "paragraph seperator"
+    ]
 
 ws :: Parser ()
-ws = bom <|> void hspacechar <|> blockComment <?> "Whitespace"
+ws = bom <|> hspacechar <|> blockComment <?> "Whitespace"
 
 bom :: Parser ()
-bom = void $ char '\xFEFF'
+bom = void (char '\xFEFF') <?> "BOM"
 
-hspacechar :: Parser Char
-hspacechar = satisfy (\c -> isSpace c && c /= '\n')
+hspacechar :: Parser ()
+hspacechar = label "Unicode Space" $ do
+  choice $ map
+    void
+    [ char '\x0009' <?> "character tabulation"
+    , char '\x0020' <?> "space"
+    , char '\x00A0' <?> "bo-break space"
+    , char '\x1680' <?> "ogham space mark"
+    , char '\x2000' <?> "en quad"
+    , char '\x2001' <?> "em quad"
+    , char '\x2002' <?> "en space"
+    , char '\x2003' <?> "em space"
+    , char '\x2004' <?> "three-per-em space"
+    , char '\x2005' <?> "four-per-em space"
+    , char '\x2006' <?> "six-per-em space"
+    , char '\x2007' <?> "figure space"
+    , char '\x2008' <?> "punctuation space"
+    , char '\x2009' <?> "thin space"
+    , char '\x200A' <?> "hair space"
+    , char '\x202F' <?> "narrow no-break space"
+    , char '\x205F' <?> "medium mathmatical space"
+    , char '\x3000' <?> "ideographic space"
+    ]
 
 -- STRINGS
 
@@ -89,30 +108,40 @@ anystring :: Parser Text
 anystring = try rawstring <|> escstring
 
 escstring :: Parser Text
-escstring = do
+escstring = label "String" $ do
   T.concat <$> (char '"' *> manyTill character (char '"'))
 
 rawstring :: Parser Text
-rawstring = do
+rawstring = label "Raw String" $ do
   void (char 'r')
-  hs <- many (char '#')
+  hs <- T.pack <$> many (char '#')
   void (char '"')
-  let h = length hs
-  s <- count (h + 1) (manyTill__ anySingle (char '"'))
-  void (count h (char '#'))
-  return . T.pack $ (init . concat $ s)
+  s <- manyTill anySingle (string (T.cons '"' hs))
+  return (T.pack s)
 
 character :: Parser Text
-character =
-  void (char '\\') *> escape <|> T.singleton <$> noneOf ("\\\"" :: [Char])
+character = void (char '\\') *> escape <|> nonescape
 
+{-
+  As per the Haskell 2010 Language Report,
+  (https://www.haskell.org/onlinereport/haskell2010/haskellch2.html#x7-200002.6)
+  The '\/' Solidus escape isn't defined, so if we try to parse it directly the
+  compiler throws a lexical error. Hence this terribleness.
+-}
 escape :: Parser Text
 escape =
   do
-    c <- oneOf ("\"\\/bfnrt" :: [Char])
-    case c of
-      '\\' -> return (T.singleton c)
-      e    -> return (T.pack ['\\', e])
+    e <- choice
+      [ '\x08' <$ char 'b'
+      , '\x09' <$ char 't'
+      , '\x0A' <$ char 'n'
+      , '\x0C' <$ char 'f'
+      , '\x0D' <$ char 'r'
+      , '\x22' <$ char '\"'
+      , '\x2F' <$ char '/'
+      , '\x5C' <$ char '\\'
+      ]
+    return (T.singleton e)
   <|> uescape
 
 uescape :: Parser Text
@@ -123,30 +152,35 @@ uescape = do
     then fail "Exceeded Unicode code point limit."
     else do
       void (char '}')
-      let s = chr u
-      return (T.singleton s)
+      let c = chr u
+      return (T.singleton c)
+
+nonescape :: Parser Text
+nonescape = do
+  c <- noneOf ("\\\"" :: [Char])
+  return (T.singleton c)
 
 -- NUMBERS
 
 binary :: Parser Integer
-binary = L.signed hsc $ char '0' >> char' 'b' >> number 2 isBinDigit
+binary = signed $ char '0' >> char' 'b' >> number 2 isBinDigit
 
 octal :: Parser Integer
-octal = L.signed hsc $ char '0' >> char 'o' >> number 8 isOctDigit
+octal = signed $ char '0' >> char 'o' >> number 8 isOctDigit
 
 hexadecimal :: Parser Integer
-hexadecimal = L.signed hsc $ char '0' >> char 'x' >> number 16 isHexDigit
+hexadecimal = signed $ char '0' >> char 'x' >> number 16 isHexDigit
 
 integer :: Parser Integer
-integer = L.signed hsc decimal_
+integer = signed decimal_
 
 scientific :: Parser Scientific
-scientific = L.signed hsc scientific_
+scientific = signed scientific_
 
 -- CONTENT
 
-name :: Parser Name
-name = choice [Identifier <$> try identifier, QuotedString <$> anystring]
+name :: Parser Identifier
+name = Identifier <$> (try anystring <|> identifier)
 
 identifier :: Parser Text
 identifier = label "Identifier" $ do
@@ -169,30 +203,28 @@ nullvalue = string "null"
 bool :: Parser Bool
 bool = True <$ string "true" <|> False <$ string "false"
 
-property :: Parser Property
+property :: Parser (Identifier, Value)
 property = label "Property" $ do
   propKey <- name
   void (char '=')
   propValue <- value
-  return Property { .. }
+  return (propKey, propValue)
 
 value :: Parser Value
 value = label "Value" $ do
   valueAnn <- optional typeAnnotation
   valueExp <- choice
-    [ BinaryValue <$> try binary <?> "Bin"
-    , OctalValue <$> try octal <?> "Oct"
-    , HexValue <$> try hexadecimal <?> "Hex"
-    , SciValue <$> try scientific <?> "Float"
-    , IntegerValue <$> try integer <?> "Integer"
+    [ IntegerValue <$> try binary <?> "Binary"
+    , IntegerValue <$> try octal <?> "Octal"
+    , IntegerValue <$> try hexadecimal <?> "Hexadecimal"
+    , SciValue <$> try scientific <?> "Decimal"
     , BooleanValue <$> try bool <?> "Boolean"
     , NullValue <$ try nullvalue <?> "Null"
-    , StringValue <$> try escstring <?> "String"
-    , RawStringValue <$> try rawstring <?> "Raw String"
+    , StringValue <$> anystring <?> "String"
     ]
   return Value { .. }
 
-typeAnnotation :: Parser Name
+typeAnnotation :: Parser Identifier
 typeAnnotation = label "Type Annotation" $ do
   void (char '(')
   i <- name
@@ -210,16 +242,16 @@ nodes = between (many linespace) (many linespace) (fromMaybe [] <$> body)
     return (n ++ ns)
 
 node :: Parser (Maybe Node)
-node = do
-  discard        <- optional comment
-  nodeAnn        <- optional typeAnnotation
-  nodeName       <- name
-  nodeContent    <- catMaybes <$> content
-  nodeChildren   <- fromMaybe [] <$> optional children
-  _              <- many nodespace
-  nodeTerminator <- terminator
+node = label "Node" $ do
+  discard      <- optional comment
+  nodeAnn      <- optional typeAnnotation
+  nodeName     <- name
+  nodeContent  <- catMaybes <$> content
+  nodeChildren <- fromMaybe [] <$> optional children
+  _            <- many nodespace
+  _            <- terminator
   let nodeArgs  = mapMaybe isArg nodeContent
-      nodeProps = mapMaybe isProp nodeContent
+      nodeProps = Map.fromList $ mapMaybe isProp nodeContent
   case discard of
     Just _  -> return Nothing
     Nothing -> return $ Just Node { .. }
@@ -234,15 +266,14 @@ node = do
 content :: Parser [Maybe Content]
 content = many . try $ do
   void (some nodespace)
-  discard <- optional comment
-  void (many nodespace)
-  c <- choice [NodeProperty <$> try property, NodeValue <$> try value]
+  discard <- optional $ comment <* many nodespace
+  c       <- choice [NodeProperty <$> try property, NodeValue <$> try value]
   case discard of
     Just _  -> return Nothing
     Nothing -> return $ Just c
 
 children :: Parser [Node]
-children = try $ do
+children = label "Node Child" . try $ do
   void (many nodespace)
   discard <- optional comment
   void (char '{')
@@ -254,7 +285,7 @@ children = try $ do
     Nothing -> return ns
 
 comment :: Parser ()
-comment = try $ do
+comment = label "/-Comment" . try $ do
   void (string "/-")
   void $ many nodespace
 
@@ -262,28 +293,12 @@ nodespace :: Parser ()
 nodespace = label "Node Space" $ do
   try (many ws *> escline <* many ws) <|> try (void $ some ws)
 
-terminator :: Parser NodeTerminator
-terminator = choice
-  [ Semicolon <$ try (char ';')
-  , Newline <$ try newline
-  , LineComment <$ try lineComment
-  , EOF <$ eof
-  ]
+terminator :: Parser ()
+terminator = label "Node Terminator" $ do
+  choice [try (void (char ';')), try (void newline), try lineComment, eof]
 
-pDocument :: Parser Document
-pDocument = do
+document :: Parser Document
+document = do
   docNodes <- nodes
+  void eof
   return Document { .. }
-
-parseKDL' :: IO ()
-parseKDL' = do
-  putStrLn "Type a valid KDL document:"
-  doc <- T.pack <$> getLine
-  parseTest pDocument doc
-
-parseKDL :: String -> Document
-parseKDL s = do
-  let doc = T.pack s
-  case runParser pDocument "" doc of
-    Right d -> d
-    Left  _ -> Document { docNodes = [] }
