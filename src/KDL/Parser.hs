@@ -194,7 +194,10 @@ identifier = label "Identifier" $ do
     _       -> return result
  where
   ichar c =
-    c > '\x20' && c <= '\x10FFFF' && c `notElem` ("\\/(){}<>;[]=,\"" :: [Char])
+    (c > '\x20')
+      && (c <= '\x10FFFF')
+      && (c `notElem` ("\\/(){}<>;[]=,\"" :: [Char]))
+      && not (match linespace (T.singleton c))
   iichar c = ichar c && c `notElem` ['0' .. '9']
 
 nullvalue :: Parser Text
@@ -245,7 +248,7 @@ node :: Parser (Maybe Node)
 node = label "Node" $ do
   discard      <- optional comment
   nodeAnn      <- optional typeAnnotation
-  nodeName     <- name
+  nodeName     <- dbg "name" name
   nodeContent  <- catMaybes <$> content
   nodeChildren <- fromMaybe [] <$> optional children
   _            <- many nodespace
