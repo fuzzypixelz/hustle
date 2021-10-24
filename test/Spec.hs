@@ -1,38 +1,40 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import           Control.Exception              ( evaluate )
-import           KDL
-import           KDL.Types
-import           System.Directory
-import           System.FilePath
-import           Test.Hspec
-import           Test.QuickCheck
+import qualified Data.Text                     as T
+import           KDL                            ( document
+                                                , parse
+                                                )
+import           System.Directory               ( doesFileExist
+                                                , getDirectoryContents
+                                                )
+import           System.FilePath                ( (</>) )
+import           Test.Hspec                     ( SpecWith
+                                                , describe
+                                                , hspec
+                                                , it
+                                                , parallel
+                                                , runIO
+                                                , shouldBe
+                                                )
+import           Test.QuickCheck                ( )
 
 testCase :: FilePath -> FilePath -> SpecWith ()
 testCase input expected = do
   describe "KDL.parseKDL" $ do
     it ("should satisfy " ++ input) $ do
-      inputFile     <- readFile input
+      inputFile     <- T.pack <$> readFile input
       shouldSucceed <- doesFileExist expected
-      if shouldSucceed
-        then do
+      case parse document input inputFile of
+        Left  _ -> shouldSucceed `shouldBe` False
+        Right d -> do
           expectedFile <- readFile expected
-          show (parseKDL inputFile) `shouldBe` expectedFile
-        else do
-          parseKDL inputFile `shouldBe` Document { docNodes = [] }
+          show d `shouldBe` expectedFile
 
-whatever :: String -> String -> IO ()
-whatever x y = do
-  putStrLn x
-  putStrLn y
-
-getAbsDirectoryContents :: String -> IO [FilePath]
-getAbsDirectoryContents dir = do
-  contents <- getDirectoryContents dir
-  return $ map (dir </>) contents
-
+inputDir :: FilePath
 inputDir = "kdl/tests/test_cases/input"
 
+expectedDir :: FilePath
 expectedDir = "kdl/tests/test_cases/expected_kdl"
 
 main :: IO ()
@@ -45,33 +47,3 @@ main = hspec $ do
       let expectedFiles = map (expectedDir </>) files
       let testCases     = zipWith testCase inputFiles expectedFiles
       sequence_ testCases
-
-  describe "KDL.parseKDL" $ do
-    it "ends a node with a semicolon or a newline" $ do
-      parseKDL "node;" `shouldBe` Document
-        { docNodes = [ Node { nodeName       = Identifier "node"
-                            , nodeArgs       = []
-                            , nodeProps      = []
-                            , nodeAnn        = Nothing
-                            , nodeTerminator = Semicolon
-                            , nodeChildren   = []
-                            }
-                     ]
-        }
-
-    it "parses strings stating with r as Raw Strings" $ do
-      parseKDL "node r#\"ÉPIC\\n \"RawString 😀\"#;" `shouldBe` Document
-        { docNodes =
-          [ Node
-              { nodeName       = Identifier "node"
-              , nodeArgs = [ Value Nothing
-                                   (RawStringValue "ÉPIC\\n \"RawString 😀")
-                           ]
-              , nodeProps      = []
-              , nodeAnn        = Nothing
-              , nodeTerminator = Semicolon
-              , nodeChildren   = []
-              }
-          ]
-        }
-
