@@ -10,7 +10,6 @@ import           Control.Monad                  ( void )
 import           Data.Char                      ( chr
                                                 , isHexDigit
                                                 , isOctDigit
-                                                , isSpace
                                                 )
 import qualified Data.Map.Strict               as Map
 import           Data.Maybe                     ( catMaybes
@@ -19,7 +18,6 @@ import           Data.Maybe                     ( catMaybes
                                                 , maybeToList
                                                 )
 import           Data.Scientific                ( Scientific )
-import qualified Data.Scientific               as Sci
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as T
 import           Text.Megaparsec                ( (<?>)
@@ -28,28 +26,19 @@ import           Text.Megaparsec                ( (<?>)
                                                 , anySingle
                                                 , between
                                                 , choice
-                                                , count
-                                                , count'
                                                 , many
                                                 , manyTill
                                                 , noneOf
-                                                , oneOf
                                                 , optional
-                                                , parseTest
-                                                , runParser
                                                 , satisfy
                                                 , some
-                                                , someTill
                                                 )
 import           Text.Megaparsec.Char           ( char
                                                 , char'
                                                 , crlf
-                                                , hexDigitChar
                                                 , newline
                                                 , string
                                                 )
-import qualified Text.Megaparsec.Char.Lexer    as L
-import           Text.Megaparsec.Debug
 
 -- WHITESPACE
 
