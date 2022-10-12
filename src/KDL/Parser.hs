@@ -237,7 +237,7 @@ node :: Parser (Maybe Node)
 node = label "Node" $ do
   discard      <- optional comment
   nodeAnn      <- optional typeAnnotation
-  nodeName     <- dbg "name" name
+  nodeName     <- name
   nodeContent  <- catMaybes <$> content
   nodeChildren <- fromMaybe [] <$> optional children
   _            <- many nodespace
