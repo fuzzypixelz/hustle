@@ -7,7 +7,7 @@ featuring a Parser and a Formatter.
 
 ### Library
 
-This is the source code for the provided `Main.hs` program,
+This is the source code for the provided `hustle-fmt` program,
 it reformats a KDL document received through `stdin`.
 
 ```hs
@@ -66,8 +66,8 @@ Document
 
 ### Building
 
-This is a Stack project, you can build it using `stack build`, the test suite is described
-in the `test/Spec.hs` file and can be run with `stack test`.
+This is a Cabal project, you can build it using `cabal build`, the test suite is described
+in the `test/Spec.hs` file and can be run with `cabal test`.
 
 #### Dependencies
 
