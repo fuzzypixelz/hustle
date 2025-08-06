@@ -1,4 +1,4 @@
-module Main where
+module Main (main) where
 
 import qualified Data.Text                     as T
 import           KDL                            ( document
@@ -12,4 +12,3 @@ main = do
   case parse document "" input of
     Left  e -> putStrLn (errorBundlePretty e)
     Right d -> print d
-

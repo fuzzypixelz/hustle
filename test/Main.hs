@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+module Main (main) where
+
 import           Control.Exception              ( evaluate )
 import qualified Data.Text                     as T
 import           KDL                            ( document
@@ -21,7 +23,7 @@ import           Test.QuickCheck                ( )
 
 testCase :: FilePath -> FilePath -> SpecWith ()
 testCase input expected = do
-  describe "KDL.parseKDL" $ do
+  describe "KDL.parse" $ do
     it ("should satisfy " ++ input) $ do
       inputFile     <- T.pack <$> readFile input
       shouldSucceed <- doesFileExist expected

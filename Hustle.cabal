@@ -1,85 +1,68 @@
-cabal-version: 1.12
-
--- This file has been generated from package.yaml by hpack version 0.34.4.
---
--- see: https://github.com/sol/hpack
-
-name:           Hustle
-version:        0.1.0.0
-synopsis:       Haskell implementation of the KDL Document Language
-description:    Please see the README on GitHub at <https://github.com/fuzzypixelz/Hustle#readme>
-homepage:       https://github.com/fuzzypixelz/Hustle#readme
-bug-reports:    https://github.com/fuzzypixelz/Hustle/issues
-author:         Mahmoud Mazouz
-maintainer:     mazouz.mahmoud@outlook.com
-copyright:      2021 Mahmoud Mazouz
-license:        MIT
-license-file:   LICENSE
-build-type:     Simple
-extra-source-files:
-    README.md
-    ChangeLog.md
+cabal-version:          3.0
+name:                   Hustle
+version:                0.1.0.0
+synopsis:               Haskell implementation of the KDL Document Language
+description:            See <https://github.com/fuzzypixelz/Hustle#readme>
+homepage:               https://github.com/fuzzypixelz/hustle
+bug-reports:            https://github.com/fuzzypixelz/Hustle/issues
+license:                MIT
+license-file:           LICENSE
+author:                 Mahmoud Mazouz
+maintainer:             hello@fuzzypixelz.com
+category:               Data
+build-type:             Simple
+extra-doc-files:        CHANGELOG.md
 
 source-repository head
   type: git
   location: https://github.com/fuzzypixelz/Hustle
 
-library
-  exposed-modules:
-      KDL
-  other-modules:
-      KDL.Formatter
-      KDL.Internal
-      KDL.Parser
-      KDL.Types
-      Paths_Hustle
-  hs-source-dirs:
-      src
-  build-depends:
-      base >=4.7 && <5
-    , containers
-    , megaparsec
-    , prettyprinter
-    , scientific
-    , text
-  default-language: Haskell2010
+common warnings
+    ghc-options:        -Wall
 
-executable Hustle-exe
-  main-is: Main.hs
-  other-modules:
-      Paths_Hustle
-  hs-source-dirs:
-      app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
-  build-depends:
-      Hustle
-    , base >=4.7 && <5
-    , containers
-    , megaparsec
-    , prettyprinter
-    , scientific
-    , text
-  default-language: Haskell2010
+common depends
+    build-depends:
+        base ^>=4.18.3.0,
+        containers,
+        megaparsec,
+        prettyprinter,
+        scientific,
+        text
+
+library
+    import:
+        warnings,
+        depends
+    exposed-modules:    KDL
+    other-modules:
+        KDL.Formatter,
+        KDL.Internal,
+        KDL.Parser,
+        KDL.Types
+    hs-source-dirs:     src
+    default-language:   Haskell2010
 
 test-suite Hustle-test
-  type: exitcode-stdio-1.0
-  main-is: Spec.hs
-  other-modules:
-      Paths_Hustle
-  hs-source-dirs:
-      test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-depends:
-      Hustle
-    , QuickCheck
-    , base >=4.7 && <5
-    , containers
-    , directory
-    , filepath
-    , hspec ==2.*
-    , megaparsec
-    , prettyprinter
-    , scientific
-    , text
-  default-language: Haskell2010
-  build-tool-depends: hspec-discover:hspec-discover == 2.*
+    import:
+        warnings,
+        depends
+    default-language:   Haskell2010
+    type:               exitcode-stdio-1.0
+    hs-source-dirs:     test
+    main-is:            Main.hs
+    build-depends:
+        Hustle,
+        QuickCheck,
+        hspec,
+        directory,
+        filepath
+
+executable hustle-fmt
+    import:
+        warnings,
+        depends
+    default-language:   Haskell2010
+    ghc-options:        -threaded -rtsopts -with-rtsopts=-N -O2
+    hs-source-dirs:     hustle-fmt
+    main-is:            Main.hs
+    build-depends:      Hustle
