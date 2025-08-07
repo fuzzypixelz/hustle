@@ -2,7 +2,7 @@
 
 module Main (main) where
 
-import           Control.Exception              ( evaluate )
+import           Control.Monad.IO.Class
 import qualified Data.Text                     as T
 import           KDL                            ( document
                                                 , parse
@@ -20,6 +20,8 @@ import           Test.Hspec                     ( SpecWith
                                                 , shouldBe
                                                 )
 import           Test.QuickCheck                ( )
+import           Prettyprinter
+import           Text.Megaparsec.Error
 
 testCase :: FilePath -> FilePath -> SpecWith ()
 testCase input expected = do
@@ -28,10 +30,12 @@ testCase input expected = do
       inputFile     <- T.pack <$> readFile input
       shouldSucceed <- doesFileExist expected
       case parse document input inputFile of
-        Left  _ -> shouldSucceed `shouldBe` False
+        Left e -> do
+          liftIO $ putStrLn $ errorBundlePretty e
+          shouldSucceed `shouldBe` False
         Right d -> do
           expectedFile <- readFile expected
-          show d `shouldBe` expectedFile
+          (show $ pretty d) `shouldBe` expectedFile
 
 inputDir :: FilePath
 inputDir = "kdl/tests/test_cases/input"
