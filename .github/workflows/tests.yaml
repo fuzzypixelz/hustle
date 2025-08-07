@@ -25,31 +25,31 @@ jobs:
           version: 0.1.7.1
 
   backend-tests:
-    needs: generateMatrix
+    needs: generate-matrix
     runs-on: ${{ matrix.os }}
     strategy:
       matrix: ${{ fromJSON(needs.generateMatrix.outputs.matrix) }}
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Haskell
-      id: setup-haskell
-      uses: haskell-actions/setup@v2
-      with:
-        ghc-version: "${{ matrix.ghc }}"
-        cabal-version: "latest"
+      - name: Set up Haskell
+        id: setup-haskell
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: "${{ matrix.ghc }}"
+          cabal-version: "latest"
 
-    - name: "Create freeze file"
-      run: |
-        cabal freeze --enable-tests
+      - name: "Create freeze file"
+        run: |
+          cabal freeze --enable-tests
 
-    - name: Cache
-      uses: actions/cache@v4
-      with:
-        path: ${{ steps.setup-haskell.outputs.cabal-store }}
-        key: ${{ runner.os }}-ghc-${{ matrix.ghc }}-cabal-${{ hashFiles('./dist-newstyle/cache/plan.json') }}
-        restore-keys: ${{ runner.os }}-ghc-${{ matrix.ghc }}
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.setup-haskell.outputs.cabal-store }}
+          key: ${{ runner.os }}-ghc-${{ matrix.ghc }}-cabal-${{ hashFiles('./dist-newstyle/cache/plan.json') }}
+          restore-keys: ${{ runner.os }}-ghc-${{ matrix.ghc }}
 
-    - name: Build
-      run: |
-        cabal build
+      - name: Build
+        run: |
+          cabal build
