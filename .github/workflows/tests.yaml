@@ -20,7 +20,7 @@ jobs:
         id: set-matrix
         uses: kleidukos/get-tested@v0.1.7.1
         with:
-          cabal-file: Hustle.cabal
+          cabal-file: hustle.cabal
           ubuntu-version: "22.04"
           version: 0.1.7.1
 

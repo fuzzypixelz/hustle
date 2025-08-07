@@ -1,4 +1,4 @@
-# Revision history for Hustle
+# Revision history for hustle
 
 ## 0.1.0.0 -- 2022-05-19
 

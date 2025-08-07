@@ -90,7 +90,7 @@ aggravated by the ongoing discussions on the [specification](https://github.com/
 
 ## Contributing
 
-Feel free to open issues and/or pull requests on [fuzzypixelz/Hustle](https://github.com/fuzzypixelz/Hustle); the kdl-org [Code of Conduct](https://github.com/kdl-org/kdl/blob/main/CODE_OF_CONDUCT.md) applies.
+Feel free to open issues and/or pull requests on [fuzzypixelz/hustle](https://github.com/fuzzypixelz/hustle); the kdl-org [Code of Conduct](https://github.com/kdl-org/kdl/blob/main/CODE_OF_CONDUCT.md) applies.
 
 ## Acknowledgements
 
