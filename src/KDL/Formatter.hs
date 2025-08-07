@@ -75,6 +75,3 @@ instance Pretty Node where
 
 instance Pretty Document where
   pretty d = vsep (map pretty (docNodes d)) <> "\n"
-
-instance Show Document where
-  show d = show (pretty d)

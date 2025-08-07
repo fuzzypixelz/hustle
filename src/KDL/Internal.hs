@@ -1,38 +1,32 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module KDL.Internal where
 
-import           Control.Monad                  ( void )
+import Data.Functor
 import           Data.Char                      ( digitToInt
                                                 , isDigit
                                                 )
 import           Data.Either                    ( isRight )
-import           Data.Scientific                ( Scientific )
 import qualified Data.Scientific               as Sci
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as T
-import           KDL.Types                      ( Parser )
+import           KDL.Types                      ( Parser, ValueType(..) )
 import           Text.Megaparsec                ( (<|>)
                                                 , MonadParsec
                                                   ( eof
                                                   , takeWhileP
-                                                  , try
                                                   )
-                                                , manyTill_
+                                                , choice
                                                 , option
                                                 , runParser
                                                 , satisfy
                                                 )
 import           Text.Megaparsec.Char           ( char
-                                                , char'
                                                 , digitChar
                                                 , newline
                                                 )
 import qualified Text.Megaparsec.Char.Lexer    as L
-
-signed :: Num a => Parser a -> Parser a
-signed p = option id sign <*> p
-  where sign = (id <$ char '+') <|> (negate <$ char '-')
 
 lineComment :: Parser ()
 lineComment = L.skipLineComment "//" >> (void newline <|> eof)
@@ -57,27 +51,44 @@ number b isNumDigit = mkNum . T.filter (/= '_') <$> digits
 decimal_ :: Parser Integer
 decimal_ = number 10 isDigit
 
-scientific_ :: Parser Scientific
-scientific_ = do
-  c'      <- decimal_
-  SP c e' <- option (SP c' 0) (try $ dotDecimal_ c')
-  e       <- option e' (try $ exponent_ e')
-  return (Sci.scientific c e)
+signed :: Num a => Parser a -> Parser a
+signed p =
+  option 
+    id 
+    ((char '+' $> id)
+      <|> (char '-' $> negate))
+  <*> p
 
-dotDecimal_ :: Integer -> Parser SP
-dotDecimal_ c' = do
-  void (char '.')
-  let digits = T.cons <$> digitChar <*> takeWhileP
-        (Just "digit")
-        (\c -> isDigit c || c == '_')
-  let mkNum = T.foldl' step (SP c' 0)
-      step (SP a e') c = SP (a * 10 + fromIntegral (digitToInt c)) (e' - 1)
-  mkNum . T.filter (/= '_') <$> digits
+scientific :: Parser ValueType
+scientific = do
+    sign <- signed (pure 1)
+    whole <- decimal_
+    choice
+      [ char '.' *> do
+          (mantissa, e0) <- fractionalPart whole
+          exponent <- option e0 $ (char 'e' *> exponentPart e0) <|> pure e0
+          pure $ SciValue $ fromInteger sign * Sci.scientific mantissa exponent
 
-exponent_ :: Int -> Parser Int
-exponent_ e' = do
-  void (char' 'e')
-  (+ e') <$> L.signed (return ()) (fromIntegral <$> decimal_)
+      , char 'e' *> do
+          exponent <- exponentPart 0
+          pure $ SciValue $ fromInteger sign * Sci.scientific whole exponent
+      , do
+          pure $ IntegerValue $ sign * whole
+      ]
+  where
+    fractionalPart :: Integer -> Parser (Integer, Int)
+    fractionalPart whole = do
+      let digits = T.cons <$> digitChar <*> takeWhileP
+            (Just "digit")
+            (\c -> isDigit c || c == '_')
+      let step (a, e) c = (a * 10 + fromIntegral (digitToInt c), e - 1)
+      let mkNum = T.foldl' step (whole, 0)
+      mkNum . T.filter (/= '_') <$> digits
+
+    exponentPart :: Int -> Parser Int
+    exponentPart e0 = do
+      e1 :: Int <- L.signed (pure ()) (fromIntegral <$> decimal_)
+      pure (e0 + e1)
 
 match :: Parser a -> Text -> Bool
 match p t = isRight $ runParser (p >> eof) "" t
