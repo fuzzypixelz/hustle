@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  generateMatrix:
+  generate-matrix:
     name: "Generate matrix from cabal"
     runs-on: ubuntu-22.04
     outputs:
