@@ -24,7 +24,7 @@ jobs:
           ubuntu-version: "22.04"
           version: 0.1.7.1
 
-  Backend_tests:
+  backend-tests:
     needs: generateMatrix
     runs-on: ${{ matrix.os }}
     strategy:
