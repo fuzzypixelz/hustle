@@ -12,7 +12,7 @@ concurrency:
 jobs:
   generate-matrix:
     name: "Generate matrix from cabal"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
