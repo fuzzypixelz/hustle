@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 module KDL.Types
   ( Parser
   , Document(..)
@@ -24,7 +25,7 @@ type Parser = Parsec Void Text
 newtype Document = Document
   { docNodes :: [Node]
   }
-  deriving (Eq)
+  deriving (Eq, Show)
 
 {- 
   This data type serves as an abstraction over Values
@@ -35,7 +36,7 @@ newtype Document = Document
 data Content
   = NodeValue    { getValue :: Value }
   | NodeProperty { getProp :: (Identifier, Value) }
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data Node = Node
   { nodeAnn      :: Maybe Identifier
