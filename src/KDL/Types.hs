@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 module KDL.Types
   ( Parser
   , Document(..)

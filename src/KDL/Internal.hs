@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 module KDL.Internal where
 
@@ -11,7 +12,7 @@ import           Data.Either                    ( isRight )
 import qualified Data.Scientific               as Sci
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as T
-import           KDL.Types                      ( Parser, ValueType(..) )
+import           KDL.Types                      ( Parser, ValueType(..))
 import           Text.Megaparsec                ( (<|>)
                                                 , MonadParsec
                                                   ( eof
@@ -36,8 +37,6 @@ blockComment = L.skipBlockCommentNested "/*" "*/"
 
 isBinDigit :: Char -> Bool
 isBinDigit c = c `elem` ['0', '1']
-
-data SP = SP Integer Int
 
 number :: Integer -> (Char -> Bool) -> Parser Integer
 number b isNumDigit = mkNum . T.filter (/= '_') <$> digits
@@ -68,7 +67,6 @@ scientific = do
           (mantissa, e0) <- fractionalPart whole
           exponent <- option e0 $ (char 'e' *> exponentPart e0) <|> pure e0
           pure $ SciValue $ fromInteger sign * Sci.scientific mantissa exponent
-
       , char 'e' *> do
           exponent <- exponentPart 0
           pure $ SciValue $ fromInteger sign * Sci.scientific whole exponent
