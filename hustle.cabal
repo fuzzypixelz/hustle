@@ -57,6 +57,7 @@ test-suite hustle-test
         QuickCheck,
         hspec,
         directory,
+        HUnit,
         filepath
 
 executable hustle-fmt

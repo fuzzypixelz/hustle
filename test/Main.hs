@@ -2,15 +2,17 @@
 
 module Main (main) where
 
-import           Control.Exception              ( evaluate )
+import           Control.Monad.IO.Class
 import qualified Data.Text                     as T
 import           KDL                            ( document
                                                 , parse
+                                                , Document
                                                 )
 import           System.Directory               ( doesFileExist
                                                 , getDirectoryContents
                                                 )
 import           System.FilePath                ( (</>) )
+import qualified Test.HUnit
 import           Test.Hspec                     ( SpecWith
                                                 , describe
                                                 , hspec
@@ -20,6 +22,8 @@ import           Test.Hspec                     ( SpecWith
                                                 , shouldBe
                                                 )
 import           Test.QuickCheck                ( )
+import           Prettyprinter
+import           Text.Megaparsec.Error
 
 testCase :: FilePath -> FilePath -> SpecWith ()
 testCase input expected = do
@@ -27,11 +31,24 @@ testCase input expected = do
     it ("should satisfy " ++ input) $ do
       inputFile     <- T.pack <$> readFile input
       shouldSucceed <- doesFileExist expected
+      expectedResult <- parseExpectedResult expected
       case parse document input inputFile of
-        Left  _ -> shouldSucceed `shouldBe` False
-        Right d -> do
-          expectedFile <- readFile expected
-          show d `shouldBe` expectedFile
+        Left e -> do
+          liftIO $ putStrLn $ errorBundlePretty e
+          shouldSucceed `shouldBe` False
+        Right d ->
+          (show $ pretty d) `shouldBe` (show $ pretty expectedResult)
+
+parseExpectedResult :: FilePath -> IO Document
+parseExpectedResult expected = do
+  expectedFile <- T.pack <$> readFile expected
+  case parse document expected expectedFile of
+    Left e -> do
+      putStrLn $ errorBundlePretty e
+      Test.HUnit.assertFailure $ "Could not parse: " <> expected
+    Right d -> do
+      expectedFile <- readFile expected
+      pure d
 
 inputDir :: FilePath
 inputDir = "kdl/tests/test_cases/input"

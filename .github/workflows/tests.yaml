@@ -31,6 +31,8 @@ jobs:
       matrix: ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: 'true'
 
       - name: Set up Haskell
         id: setup-haskell
@@ -53,3 +55,7 @@ jobs:
       - name: Build
         run: |
           cabal build
+
+      - name: Test
+        run: |
+          cabal test

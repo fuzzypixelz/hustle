@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
 
 module KDL.Parser where
 
+import Data.Functor
 import           KDL.Internal
 import           KDL.Types
 
-import           Control.Monad                  ( void )
 import           Data.Char                      ( chr
                                                 , isHexDigit
                                                 , isOctDigit
@@ -17,7 +18,6 @@ import           Data.Maybe                     ( catMaybes
                                                 , mapMaybe
                                                 , maybeToList
                                                 )
-import           Data.Scientific                ( Scientific )
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as T
 import           Text.Megaparsec                ( (<?>)
@@ -149,7 +149,7 @@ nonescape = do
   c <- noneOf ("\\\"" :: [Char])
   return (T.singleton c)
 
--- NUMBERS
+-- NUMBERS    
 
 binary :: Parser Integer
 binary = signed $ char '0' >> char' 'b' >> number 2 isBinDigit
@@ -159,12 +159,6 @@ octal = signed $ char '0' >> char 'o' >> number 8 isOctDigit
 
 hexadecimal :: Parser Integer
 hexadecimal = signed $ char '0' >> char 'x' >> number 16 isHexDigit
-
-integer :: Parser Integer
-integer = signed decimal_
-
-scientific :: Parser Scientific
-scientific = signed scientific_
 
 -- CONTENT
 
@@ -209,7 +203,7 @@ value = label "Value" $ do
     [ IntegerValue <$> try binary <?> "Binary"
     , IntegerValue <$> try octal <?> "Octal"
     , IntegerValue <$> try hexadecimal <?> "Hexadecimal"
-    , SciValue <$> try scientific <?> "Decimal"
+    , try scientific <?> "Number"
     , BooleanValue <$> try bool <?> "Boolean"
     , NullValue <$ try nullvalue <?> "Null"
     , StringValue <$> anystring <?> "String"
